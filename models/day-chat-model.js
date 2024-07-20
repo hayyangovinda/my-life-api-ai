@@ -15,6 +15,8 @@ const dayChatSchema = new mongoose.Schema({
         type: String,
         required: true,
       },
+
+      image: String,
     },
   ],
   story: {

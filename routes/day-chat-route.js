@@ -8,5 +8,6 @@ router.post("/", dayChatController.createDayChat);
 router.patch("/:id", dayChatController.updateDayChat);
 router.delete("/:id", dayChatController.deleteDayChat);
 router.get("/date", dayChatController.getDayChatByDate);
+router.post("/image", dayChatController.uploadImage);
 
 module.exports = router;
