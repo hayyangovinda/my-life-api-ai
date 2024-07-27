@@ -10,7 +10,7 @@ const transcribeAudio = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-
+    console.log(req.file);
     // The path to the uploaded file
     const filePath = req.file.path;
 

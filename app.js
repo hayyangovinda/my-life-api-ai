@@ -4,7 +4,6 @@ require("express-async-errors");
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
-const fileUpload = require("express-fileupload");
 
 const cloudinary = require("cloudinary").v2;
 cloudinary.config({
@@ -25,7 +24,6 @@ const transcribeRouter = require("./routes/speech-route");
 
 app.use(express.static("./public"));
 app.use(express.json());
-app.use(fileUpload({ useTempFiles: true }));
 
 app.use(cors());
 app.use(bodyParser.json());

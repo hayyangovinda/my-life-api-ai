@@ -11,6 +11,7 @@ const storage = multer.diskStorage({
   },
 });
 
+console.log("storage");
 // Initialize multer with storage engine
 const upload = multer({
   storage: storage,
@@ -21,7 +22,7 @@ const upload = multer({
       path.extname(file.originalname).toLowerCase()
     );
     const mimeType = fileTypes.test(file.mimetype);
-
+    console.log("hello");
     if (mimeType && extname) {
       return cb(null, true);
     } else {
