@@ -4,7 +4,7 @@ require("express-async-errors");
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
-const fileUpload = require("express-fileupload");
+// const fileUpload = require("express-fileupload");
 
 const cloudinary = require("cloudinary").v2;
 cloudinary.config({
@@ -22,8 +22,9 @@ const dayChatRouter = require("./routes/day-chat-route");
 const aiRouter = require("./routes/ai-route");
 const app = express();
 const transcribeRouter = require("./routes/speech-route");
+const upload = require("./middlewares/upload-middleware");
+// app.use(fileUpload({ useTempFiles: true }));
 
-app.use(fileUpload({ useTempFiles: true }));
 app.use(express.static("./public"));
 app.use(express.json());
 
@@ -38,7 +39,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/users", authenticateUser, userRouter);
 app.use("/api/v1/day-chat", authenticateUser, dayChatRouter);
 app.use("/api/v1/ai", authenticateUser, aiRouter);
-app.use("/api/v1/transcribe", transcribeRouter);
+app.use("/api/v1/transcribe", upload.single("audio"), transcribeRouter);
 
 const PORT = process.env.PORT || 8000;
 
