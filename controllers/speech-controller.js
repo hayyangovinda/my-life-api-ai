@@ -45,7 +45,7 @@ const client = new speech.SpeechClient();
 //       .join("\n");
 
 //     // Remove the uploaded file after processing
-//     // fs.unlinkSync(filePath);
+// fs.unlinkSync(outputFilePath);
 
 //     // Send the transcription response
 //     res.json({ transcription });
@@ -139,6 +139,8 @@ const transcribeAudio = async (req, res) => {
     const transcripts = response.results.map(
       (result) => result.alternatives[0].transcript
     );
+
+    fs.unlinkSync(outputFilePath);
 
     res.send({ transcripts });
 
