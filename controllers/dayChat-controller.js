@@ -6,12 +6,22 @@ const getAllDayChats = async (req, res) => {
   const today = new Date();
   const formattedToday = formatDateToStartOfDayUTC(today);
 
+  const sorted = req.query.sorted;
+
   try {
-    const dayChats = await DayChat.find({
-      createdBy: req.user.userId,
-      date: { $lt: formattedToday },
-    }).sort({ date: -1 });
-    res.status(200).json(dayChats);
+    if (!sorted) {
+      const dayChats = await DayChat.find({
+        createdBy: req.user.userId,
+        date: { $lt: formattedToday },
+      }).sort({ date: -1 });
+      res.status(200).json(dayChats);
+    } else {
+      const dayChats = await DayChat.find({
+        createdBy: req.user.userId,
+        date: { $lt: formattedToday },
+      }).sort({ date: 1 });
+      res.status(200).json(dayChats);
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
