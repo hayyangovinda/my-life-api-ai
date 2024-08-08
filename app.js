@@ -20,6 +20,7 @@ const authenticateUser = require("./middlewares/auth-middleware");
 const userRouter = require("./routes/user-route");
 const dayChatRouter = require("./routes/day-chat-route");
 const aiRouter = require("./routes/ai-route");
+const groupRouter = require("./routes/group-route");
 const app = express();
 const transcribeRouter = require("./routes/speech-route");
 const upload = require("./middlewares/upload-middleware");
@@ -39,6 +40,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/users", authenticateUser, userRouter);
 app.use("/api/v1/day-chat", authenticateUser, dayChatRouter);
 app.use("/api/v1/ai", authenticateUser, aiRouter);
+app.use("/api/v1/group", authenticateUser, groupRouter);
 app.use("/api/v1/transcribe", upload.single("audio"), transcribeRouter);
 
 const PORT = process.env.PORT || 8000;
