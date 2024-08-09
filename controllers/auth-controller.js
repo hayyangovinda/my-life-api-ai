@@ -50,7 +50,7 @@ const sendVerificationEmail = (req, res) => {
     expiresIn: "1h",
   });
 
-  const verificationLink = `http://localhost:8000/api/v1/auth/verify-email?token=${token}`;
+  const verificationLink = `https://my-life-api.onrender.com/api/v1/auth/verify-email?token=${token}`;
 
   const mailOptions = {
     from: "hayyan.gov@gmail.com",
@@ -126,7 +126,7 @@ const forgotPassword = async (req, res) => {
     expiresIn: "1h",
   });
 
-  const resetUrl = `http://localhost:5000/api/v1/auth/reset-password?token=${token}`;
+  const resetUrl = `https://my-life-api.onrender.com/api/v1/auth/reset-password?token=${token}`;
 
   const transporter = nodemailer.createTransport({
     service: "gmail",
