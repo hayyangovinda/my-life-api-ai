@@ -23,7 +23,6 @@ const convertTo16BitWav = (inputPath, outputPath) => {
     ffmpeg(inputPath)
       .toFormat("wav")
       .on("end", () => {
-        fs.unlinkSync(inputPath); // Remove the original AAC file
         resolve(outputPath);
       })
       .on("error", (err) => {
