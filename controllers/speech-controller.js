@@ -10,13 +10,24 @@ const client = new speech.SpeechClient();
 
 const convertTo16BitWav = (inputPath, outputPath) => {
   return new Promise((resolve, reject) => {
+    // ffmpeg(inputPath)
+    //   .outputOptions(["-acodec pcm_s16le", "-ar 16000"])
+    //   .on("end", () => {
+    //     resolve(outputPath);
+    //   })
+    //   .on("error", (err) => {
+    //     reject(err);
+    //   })
+    //   .save(outputPath);
+
     ffmpeg(inputPath)
-      .outputOptions(["-acodec pcm_s16le", "-ar 16000"])
+      .toFormat("wav")
       .on("end", () => {
+        fs.unlinkSync(inputPath); // Remove the original AAC file
         resolve(outputPath);
       })
       .on("error", (err) => {
-        reject(err);
+        reject(err); // Handle any errors during the conversion process
       })
       .save(outputPath);
   });
