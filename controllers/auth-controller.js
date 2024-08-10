@@ -36,7 +36,7 @@ const login = async (req, res) => {
 
 const sendVerificationEmail = (req, res) => {
   const { email } = req.body;
-  console.log("userid", req.user.userId);
+  // console.log("userid", req.user.userId);
 
   const transporter = nodemailer.createTransport({
     service: "gmail",
