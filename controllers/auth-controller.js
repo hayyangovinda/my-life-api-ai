@@ -3,10 +3,18 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 
 const register = async (req, res) => {
-  const user = await User.create({ ...req.body });
+  try {
+    const user = await User.create({ ...req.body });
+    const token = user.createJWT();
+    res.status(201).json({ token, userId: user._id });
+  } catch (error) {
+    console.log(typeof error.code);
 
-  const token = user.createJWT();
-  res.status(201).json({ token, userId: user._id });
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 };
 
 const login = async (req, res) => {
