@@ -15,7 +15,7 @@ const {
 const authenticateUser = require("../middlewares/auth-middleware");
 
 router.get("/verify-email", verifyEmail);
-router.post("/send-email", authenticateUser, sendVerificationEmail);
+router.post("/send-email", sendVerificationEmail);
 router.post("/register", register);
 router.post("/login", login);
 router.post(
