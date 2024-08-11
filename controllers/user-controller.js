@@ -29,7 +29,14 @@ updateUser = async (req, res) => {
   res.status(200).json({ message: "User updated successfully" });
 };
 
+deleteUser = async (req, res) => {
+  const userId = req.user.userId;
+  const user = await User.findByIdAndDelete(userId);
+  res.status(200).json(user);
+};
+
 module.exports = {
   getUserById,
   updateUser,
+  deleteUser,
 };
