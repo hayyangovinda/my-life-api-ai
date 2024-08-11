@@ -2,64 +2,63 @@ const DayChat = require("../models/day-chat-model");
 const cloudinary = require("cloudinary").v2;
 const fs = require("fs");
 
-// const getAllDayChats = async (req, res) => {
-//   const today = new Date();
-//   const formattedToday = formatDateToStartOfDayUTC(today);
-
-//   const sorted = req.query.sorted;
-
-//   try {
-//     if (!sorted) {
-//       const dayChats = await DayChat.find({
-//         createdBy: req.user.userId,
-//         date: { $lt: formattedToday },
-//       }).sort({ date: -1 });
-//       res.status(200).json(dayChats);
-//     } else {
-//       const dayChats = await DayChat.find({
-//         createdBy: req.user.userId,
-//         date: { $lt: formattedToday },
-//       }).sort({ date: 1 });
-//       res.status(200).json(dayChats);
-//     }
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
 const getAllDayChats = async (req, res) => {
   const today = new Date();
   const formattedToday = formatDateToStartOfDayUTC(today);
 
-  const { start, end, sorted } = req.query;
+  const sorted = req.query.sorted;
 
   try {
-    // Build the query object
-    const query = {
-      createdBy: req.user.userId,
-      date: { $lt: formattedToday }, // Exclude today's chats
-    };
-
-    // Add date range to the query if provided
-    if (start && end) {
-      console.log(end === formattedToday);
-      query.date.$gte = new Date(start);
-      if (end === formattedToday) {
-        query.date.$lt = new Date(end);
-      } else {
-        query.date.$lte = new Date(end); // Change $lte to $lt to exclude end date
-      }
+    if (!sorted) {
+      const dayChats = await DayChat.find({
+        createdBy: req.user.userId,
+        date: { $lt: formattedToday },
+      }).sort({ date: -1 });
+      res.status(200).json(dayChats);
+    } else {
+      const dayChats = await DayChat.find({
+        createdBy: req.user.userId,
+        date: { $lt: formattedToday },
+      }).sort({ date: 1 });
+      res.status(200).json(dayChats);
     }
-
-    // Determine sort order
-    const sortOrder = sorted ? 1 : -1;
-
-    const dayChats = await DayChat.find(query).sort({ date: sortOrder });
-    res.status(200).json(dayChats);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
+// const getAllDayChats = async (req, res) => {
+//   const today = new Date();
+//   const formattedToday = formatDateToStartOfDayUTC(today);
+
+//   const { start, end, sorted } = req.query;
+
+//   try {
+//     // Build the query object
+//     const query = {
+//       createdBy: req.user.userId,
+//       date: { $lt: today }, // Exclude today's chats
+//     };
+
+//     // Add date range to the query if provided
+//     if (start && end) {
+//       query.date.$gte = new Date(start);
+//       if (end === formattedToday) {
+//         query.date.$lt = new Date(end);
+//       } else {
+//         query.date.$lte = new Date(end); // Change $lte to $lt to exclude end date
+//       }
+//     }
+
+//     // Determine sort order
+//     const sortOrder = sorted ? 1 : -1;
+
+//     const dayChats = await DayChat.find(query).sort({ date: sortOrder });
+//     res.status(200).json(dayChats);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
 
 const createDayChat = async (req, res) => {
   try {
