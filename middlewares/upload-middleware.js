@@ -11,7 +11,7 @@ if (process.env.NODE_ENV === "production") {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/"); // Directory to store uploaded files
+    cb(null, directory); // Directory to store uploaded files
   },
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
