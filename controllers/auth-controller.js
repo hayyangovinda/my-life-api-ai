@@ -25,8 +25,11 @@ const login = async (req, res) => {
   if (!email || !password) {
     return res.status(401).json({ error: "Please provide email and password" });
   }
-
+  const allUsers = await User.find();
+  console.log("allUsers: ", allUsers);
   const user = await User.findOne({ email });
+  console.log("email: ", email);
+  console.log("user: ", user);
 
   if (!user) {
     return res.status(401).json({ error: "User does not exist" });
@@ -47,7 +50,8 @@ const sendVerificationEmail = (req, res) => {
   console.log("userid", req.user.userId);
 
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.hostinger.com",
+    port: 465,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
@@ -61,7 +65,7 @@ const sendVerificationEmail = (req, res) => {
   const verificationLink = `https://my-life-api.onrender.com/api/v1/auth/verify-email?token=${token}`;
 
   const mailOptions = {
-    from: "My Life <no-reply@mylife.com>",
+    from: "My Life <team@my-life-ai.com>",
     to: email,
     subject: "Email Verification",
     html: `<p>Please click the following link to verify your email: <a href="${verificationLink}">${verificationLink}</a></p>`,
@@ -92,12 +96,14 @@ const verifyEmail = async (req, res) => {
       return res.status(400).send("Invalid token");
     }
 
+    console.log("decoded: ", decoded);
     const user = await User.findOneAndUpdate(
       { email: decoded.email },
       { isVerified: true },
       { new: true }
     );
 
+    console.log("user: ", user);
     if (!user) {
       return res.status(404).send("User not found");
     }
@@ -139,8 +145,8 @@ const forgotPassword = async (req, res) => {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: "hayyan.gov@gmail.com",
-      pass: "adpy jqmh xytg jbgc",
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
   });
 
@@ -178,8 +184,6 @@ const forgotPassword = async (req, res) => {
 };
 
 const resetPassword = async (req, res) => {
-  console.log("caaliing");
-
   const { token } = req.query;
 
   const { password, confirmPassword } = req.body;
