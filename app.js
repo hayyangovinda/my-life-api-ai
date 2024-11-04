@@ -23,7 +23,7 @@ const aiRouter = require("./routes/ai-route");
 const groupRouter = require("./routes/group-route");
 const app = express();
 const transcribeRouter = require("./routes/speech-route");
-const upload = require("./middlewares/upload-middleware");
+const { upload } = require("./middlewares/upload-middleware");
 // app.use(fileUpload({ useTempFiles: true }));
 
 app.use(express.static("./public"));

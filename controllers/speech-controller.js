@@ -2,6 +2,8 @@ require("dotenv").config();
 const axios = require("axios");
 const fs = require("fs");
 const FormData = require("form-data");
+const { directory } = require("../middlewares/upload-middleware");
+const path = require("path");
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const model = "whisper-1";
@@ -12,7 +14,7 @@ const transcribeAudio = async (req, res) => {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    const filePath = req.file.path; // Path of the uploaded file
+    const filePath = path.join(directory, req.file.filename); // Path of the uploaded file
 
     // Prepare form data
     const formData = new FormData();
