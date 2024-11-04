@@ -36,7 +36,7 @@ const upload = multer({
   storage: storage,
   limits: { fileSize: 10000000 }, // Limit file size to 10MB
   fileFilter: (req, file, cb) => {
-    const fileTypes = /wav|mp3|aiff|aac|flac/;
+    const fileTypes = /flac|m4a|mp3|mp4|mpeg|mpga|oga|ogg|wav|webm/;
     const extname = fileTypes.test(
       path.extname(file.originalname).toLowerCase()
     );
