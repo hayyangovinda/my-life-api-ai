@@ -1,8 +1,6 @@
 const User = require("../models/user-model");
 
 getUserById = async (req, res) => {
-  console.log("hello");
-
   const userId = req.user.userId;
 
   const user = await User.findById(userId);

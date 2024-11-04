@@ -8,8 +8,6 @@ const register = async (req, res) => {
     const token = user.createJWT();
     res.status(201).json({ token, userId: user._id });
   } catch (error) {
-    console.log(typeof error.code);
-
     if (error.code === 11000) {
       return res.status(400).json({ message: "Email already exists" });
     }
@@ -18,18 +16,14 @@ const register = async (req, res) => {
 };
 
 const login = async (req, res) => {
-  console.log("login");
-
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(401).json({ error: "Please provide email and password" });
   }
   const allUsers = await User.find();
-  console.log("allUsers: ", allUsers);
+
   const user = await User.findOne({ email });
-  console.log("email: ", email);
-  console.log("user: ", user);
 
   if (!user) {
     return res.status(401).json({ error: "User does not exist" });
@@ -47,10 +41,9 @@ const login = async (req, res) => {
 
 const sendVerificationEmail = (req, res) => {
   const { email } = req.body;
-  console.log("userid", req.user.userId);
 
   const transporter = nodemailer.createTransport({
-    host: "smtp.hostinger.com",
+    host: process.env.SMTP_ADD,
     port: 465,
     auth: {
       user: process.env.EMAIL_USER,
@@ -74,10 +67,8 @@ const sendVerificationEmail = (req, res) => {
 
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
-      console.error(error);
       res.status(500).json({ error: "Failed to send email" });
     } else {
-      console.log("Email sent: " + info.response);
       res.status(200).json({ message: "Email sent successfully" });
     }
   });
@@ -87,7 +78,7 @@ const sendVerificationEmail = (req, res) => {
 
 const verifyEmail = async (req, res) => {
   const token = req.query.token;
-  console.log(token);
+
   if (!token) {
     return res.status(401).json({ error: "No token provided" });
   }
@@ -97,14 +88,12 @@ const verifyEmail = async (req, res) => {
       return res.status(400).send("Invalid token");
     }
 
-    console.log("decoded: ", decoded);
     const user = await User.findOneAndUpdate(
       { email: decoded.email },
       { isVerified: true },
       { new: true }
     );
 
-    console.log("user: ", user);
     if (!user) {
       return res.status(404).send("User not found");
     }
@@ -175,10 +164,8 @@ const forgotPassword = async (req, res) => {
   };
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
-      console.error(error);
       res.status(500).json({ error: "Failed to send email" });
     } else {
-      console.log("Email sent: " + info.response);
       res.status(200).json({ message: "Email sent successfully" });
     }
   });
@@ -189,8 +176,6 @@ const resetPassword = async (req, res) => {
 
   const { password, confirmPassword } = req.body;
 
-  console.log(req.body);
-
   if (!password || !confirmPassword) {
     return res
       .status(400)
@@ -200,8 +185,6 @@ const resetPassword = async (req, res) => {
   if (password !== confirmPassword) {
     return res.status(400).json({ error: "Passwords do not match" });
   }
-
-  console.log(jwt);
 
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
   const { email } = decoded;

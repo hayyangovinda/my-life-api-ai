@@ -75,7 +75,6 @@ const createDayChat = async (req, res) => {
 };
 
 getDayChatByDate = async (req, res) => {
-  console.log("adadsadadasasdsa");
   try {
     const dayChat = await DayChat.find({
       date: req.query.date,
