@@ -62,7 +62,8 @@ const sendVerificationEmail = (req, res) => {
     expiresIn: "1h",
   });
 
-  const verificationLink = `https://my-life-api.onrender.com/api/v1/auth/verify-email?token=${token}`;
+  // const verificationLink = `https://my-life-api.onrender.com/api/v1/auth/verify-email?token=${token}`;
+  const verificationLink = `http://localhost:8000/api/v1/auth/verify-email?token=${token}`;
 
   const mailOptions = {
     from: "My Life <team@my-life-ai.com>",
