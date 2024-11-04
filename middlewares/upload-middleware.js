@@ -1,7 +1,14 @@
 const multer = require("multer");
 const path = require("path");
 
+let directory = "";
 // Set up storage engine
+if (process.env.NODE_ENV === "production") {
+  directory = "tmp/";
+} else {
+  directory = "uploads/";
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/"); // Directory to store uploaded files
