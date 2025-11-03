@@ -4,11 +4,11 @@ const dayChatController = require("../controllers/dayChat-controller");
 const fileUpload = require("express-fileupload");
 
 router.get("/", dayChatController.getAllDayChats);
+router.get("/date", dayChatController.getDayChatByDate);
+router.get("/:id", dayChatController.getDayChat);
 router.post("/", dayChatController.createDayChat);
-// router.get("/:id", dayChatController.getDayChat);
 router.patch("/:id", dayChatController.updateDayChat);
 router.delete("/:id", dayChatController.deleteDayChat);
-router.get("/date", dayChatController.getDayChatByDate);
 router.post(
   "/image",
   fileUpload({ useTempFiles: true }),

@@ -20,7 +20,9 @@ const dayChatSchema = new mongoose.Schema({
     },
   ],
   story: {
-    type: String,
+    iv: String,
+    encryptedData: String,
+    authTag: String,
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

@@ -1,6 +1,7 @@
 const DayChat = require("../models/day-chat-model");
 const cloudinary = require("cloudinary").v2;
 const fs = require("fs");
+const { encrypt, decrypt } = require("../utils/crypto");
 
 const getAllDayChats = async (req, res) => {
   const today = new Date();
@@ -88,12 +89,40 @@ getDayChatByDate = async (req, res) => {
 
 const getDayChat = async (req, res) => {
   try {
-    const dayChat = await DayChat.find({
+    const dayChatDoc = await DayChat.findOne({
       _id: req.params.id,
       createdBy: req.user.userId,
     });
+
+    if (!dayChatDoc) {
+      return res.status(404).json({ message: "DayChat not found" });
+    }
+
+    const story = dayChatDoc.story;
+    let plainStory = story;
+
+    if (story && story.encryptedData) {
+      try {
+        plainStory = decrypt(story);
+        console.log("plainStory: ", plainStory);
+      } catch (err) {
+        console.error(
+          `Error decrypting story for chat ${dayChatDoc._id}:`,
+          err
+        );
+        plainStory = "[Error decrypting story]";
+      }
+    } else {
+      plainStory = "";
+    }
+
+    // Convert to plain object so we can modify fields
+    const dayChat = dayChatDoc.toObject();
+    dayChat.story = plainStory;
+
     res.status(200).json(dayChat);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -101,6 +130,11 @@ const getDayChat = async (req, res) => {
 const updateDayChat = async (req, res) => {
   try {
     const updatedData = req.body;
+
+    if (updatedData.story) {
+      const encryptedStory = encrypt(req.body.story);
+      updatedData.story = encryptedStory;
+    }
 
     const dayChat = await DayChat.findOneAndUpdate(
       {
