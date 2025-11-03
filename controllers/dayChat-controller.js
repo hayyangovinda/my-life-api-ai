@@ -192,6 +192,23 @@ const uploadImage = async (req, res) => {
   return res.status(200).json({ image: { src: result.secure_url } });
 };
 
+const uploadVideo = async (req, res) => {
+  try {
+    const result = await cloudinary.uploader.upload(
+      req.files.video.tempFilePath,
+      {
+        use_filename: true,
+        folder: "file-upload",
+        resource_type: "video",
+      }
+    );
+    fs.unlinkSync(req.files.video.tempFilePath);
+    return res.status(200).json({ video: { src: result.secure_url } });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getAllDayChats,
   createDayChat,
@@ -200,4 +217,5 @@ module.exports = {
   deleteDayChat,
   getDayChatByDate,
   uploadImage,
+  uploadVideo,
 };

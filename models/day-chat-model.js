@@ -17,6 +17,7 @@ const dayChatSchema = new mongoose.Schema({
       },
 
       image: String,
+      video: String,
     },
   ],
   story: {

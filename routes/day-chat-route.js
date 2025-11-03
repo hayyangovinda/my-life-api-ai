@@ -14,5 +14,10 @@ router.post(
   fileUpload({ useTempFiles: true }),
   dayChatController.uploadImage
 );
+router.post(
+  "/video",
+  fileUpload({ useTempFiles: true }),
+  dayChatController.uploadVideo
+);
 
 module.exports = router;
