@@ -10,19 +10,39 @@ const getAllDayChats = async (req, res) => {
   const sorted = req.query.sorted;
 
   try {
+    let dayChats;
     if (!sorted) {
-      const dayChats = await DayChat.find({
+      dayChats = await DayChat.find({
         createdBy: req.user.userId,
         date: { $lt: formattedToday },
       }).sort({ date: -1 });
-      res.status(200).json(dayChats);
     } else {
-      const dayChats = await DayChat.find({
+      dayChats = await DayChat.find({
         createdBy: req.user.userId,
         date: { $lt: formattedToday },
       }).sort({ date: 1 });
-      res.status(200).json(dayChats);
     }
+
+    // Decrypt stories before returning
+    const decryptedChats = dayChats.map((chat) => {
+      const chatObj = chat.toObject();
+      const story = chatObj.story;
+
+      if (story && story.encryptedData) {
+        try {
+          chatObj.story = decrypt(story);
+        } catch (err) {
+          console.error(`Error decrypting story for chat ${chatObj._id}:`, err);
+          chatObj.story = "[Error decrypting story]";
+        }
+      } else {
+        chatObj.story = "";
+      }
+
+      return chatObj;
+    });
+
+    res.status(200).json(decryptedChats);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
