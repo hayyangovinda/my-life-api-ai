@@ -25,6 +25,10 @@ const dayChatSchema = new mongoose.Schema({
     encryptedData: String,
     authTag: String,
   },
+  title: {
+    type: String,
+    default: "",
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
