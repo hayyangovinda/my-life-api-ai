@@ -29,6 +29,12 @@ const dayChatSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  collections: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Collection",
+    },
+  ],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",

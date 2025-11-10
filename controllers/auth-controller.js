@@ -1,10 +1,21 @@
 const User = require("../models/user-model");
+const Collection = require("../models/collection-model");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 
 const register = async (req, res) => {
   try {
     const user = await User.create({ ...req.body });
+
+    // Create default Favorites collection for the new user
+    await Collection.create({
+      name: "Favorites",
+      description: "Your favorite memories",
+      icon: "⭐",
+      isDefault: true,
+      createdBy: user._id,
+    });
+
     const token = user.createJWT();
     res.status(201).json({ token, userId: user._id });
   } catch (error) {
@@ -33,6 +44,22 @@ const login = async (req, res) => {
 
   if (!isPasswordCorrect) {
     return res.status(401).json({ error: "Invalid Password" });
+  }
+
+  // Ensure user has a Favorites collection (for existing users)
+  const favoritesExists = await Collection.findOne({
+    createdBy: user._id,
+    isDefault: true,
+  });
+
+  if (!favoritesExists) {
+    await Collection.create({
+      name: "Favorites",
+      description: "Your favorite memories",
+      icon: "⭐",
+      isDefault: true,
+      createdBy: user._id,
+    });
   }
 
   const token = user.createJWT();
