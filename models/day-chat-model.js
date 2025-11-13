@@ -42,4 +42,8 @@ const dayChatSchema = new mongoose.Schema({
   },
 });
 
+// Create text index for search functionality
+// This indexes the text field within the inputs array and the title field
+dayChatSchema.index({ "inputs.text": "text", title: "text" });
+
 module.exports = mongoose.model("DayChat", dayChatSchema);

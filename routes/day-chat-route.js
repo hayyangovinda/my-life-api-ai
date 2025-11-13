@@ -4,6 +4,7 @@ const dayChatController = require("../controllers/dayChat-controller");
 const fileUpload = require("express-fileupload");
 
 router.get("/", dayChatController.getAllDayChats);
+router.get("/search", dayChatController.searchDayChats);
 router.get("/date", dayChatController.getDayChatByDate);
 router.get("/:id", dayChatController.getDayChat);
 router.post("/", dayChatController.createDayChat);

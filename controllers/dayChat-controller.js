@@ -202,6 +202,79 @@ const uploadVideo = async (req, res) => {
   }
 };
 
+const searchDayChats = async (req, res) => {
+  try {
+    const { q, page = 1, limit = 10 } = req.query;
+
+    if (!q || q.trim() === "") {
+      return res.status(400).json({ message: "Search query is required" });
+    }
+
+    // Split query into individual words and create regex patterns for each
+    const searchWords = q.trim().split(/\s+/);
+
+    // Create regex patterns for each word (case-insensitive, partial match)
+    const regexPatterns = searchWords.map(
+      (word) => new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")
+    );
+
+    // Build query: each word must appear in at least one input.text or title
+    const searchConditions = regexPatterns.map((regex) => ({
+      $or: [{ "inputs.text": regex }, { title: regex }],
+    }));
+
+    const query = {
+      createdBy: req.user.userId,
+      $and: searchConditions, // All words must be present (in any order)
+    };
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Execute search with pagination
+    const [dayChats, totalCount] = await Promise.all([
+      DayChat.find(query)
+        .sort({ date: -1 }) // Most recent first
+        .skip(skip)
+        .limit(parseInt(limit)),
+      DayChat.countDocuments(query),
+    ]);
+
+    // Decrypt stories before returning
+    const decryptedChats = dayChats.map((chat) => {
+      const chatObj = chat.toObject();
+      const story = chatObj.story;
+
+      if (story && story.encryptedData) {
+        try {
+          chatObj.story = decrypt(story);
+        } catch (err) {
+          console.error(`Error decrypting story for chat ${chatObj._id}:`, err);
+          chatObj.story = "[Error decrypting story]";
+        }
+      } else {
+        chatObj.story = "";
+      }
+
+      return chatObj;
+    });
+
+    res.status(200).json({
+      results: decryptedChats,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalResults: totalCount,
+        totalPages: Math.ceil(totalCount / parseInt(limit)),
+        hasMore: skip + decryptedChats.length < totalCount,
+      },
+    });
+  } catch (err) {
+    console.error("Search error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getAllDayChats,
   createDayChat,
@@ -211,4 +284,5 @@ module.exports = {
   getDayChatByDate,
   uploadImage,
   uploadVideo,
+  searchDayChats,
 };
