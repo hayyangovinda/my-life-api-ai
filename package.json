@@ -37,6 +37,7 @@
     "nodemailer": "^6.9.13",
     "openai": "^4.70.2",
     "puppeteer": "^24.30.0",
+    "resend": "^6.4.2",
     "wavefile": "^11.0.0"
   }
 }

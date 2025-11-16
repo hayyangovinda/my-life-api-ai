@@ -1,7 +1,7 @@
 const User = require("../models/user-model");
 const Collection = require("../models/collection-model");
 const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
+const { sendVerificationEmail: sendVerificationEmailService, sendPasswordResetEmail: sendPasswordResetEmailService } = require("../utils/email-service");
 
 const register = async (req, res) => {
   try {
@@ -66,41 +66,28 @@ const login = async (req, res) => {
   res.status(200).json({ token, userId: user._id });
 };
 
-const sendVerificationEmail = (req, res) => {
-  const { email } = req.body;
+const sendVerificationEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
 
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_ADD,
-    port: 465,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
-  const token = jwt.sign({ email }, process.env.JWT_SECRET, {
-    expiresIn: "1h",
-  });
-
-  const verificationLink = `https://my-life-api-ai.onrender.com/api/v1/auth/verify-email?token=${token}`;
-  // const verificationLink = `http://localhost:8000/api/v1/auth/verify-email?token=${token}`;
-
-  const mailOptions = {
-    from: "My Life <team@my-life-ai.com>",
-    to: email,
-    subject: "Email Verification",
-    html: `<p>Please click the following link to verify your email: <a href="${verificationLink}">${verificationLink}</a></p>`,
-  };
-
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      res.status(500).json({ error: "Failed to send email" });
-    } else {
-      res.status(200).json({ message: "Email sent successfully" });
+    // Find user to get their name
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
     }
-  });
 
-  res.status(200).json({ token });
+    const token = jwt.sign({ email }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    // Send email using Resend
+    await sendVerificationEmailService(email, user.name, token);
+
+    res.status(200).json({ message: "Verification email sent successfully", token });
+  } catch (error) {
+    console.error('Send verification email error:', error);
+    res.status(500).json({ error: "Failed to send verification email" });
+  }
 };
 
 const verifyEmail = async (req, res) => {
@@ -146,56 +133,26 @@ const checkVerificationStatus = async (req, res) => {
 };
 
 const forgotPassword = async (req, res) => {
-  const { email } = req.body;
+  try {
+    const { email } = req.body;
 
-  const user = await User.findOne({ email });
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
-  }
-
-  const token = jwt.sign({ email }, process.env.JWT_SECRET, {
-    expiresIn: "1h",
-  });
-
-  const resetUrl = `https://my-life-api.onrender.com/api/v1/auth/reset-password?token=${token}`;
-
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
-  const mailOptions = {
-    to: user.email,
-    from: process.env.EMAIL_USER,
-    subject: "Password Reset",
-    html: `
-      <p>You are receiving this because you (or someone else) have requested the reset of the password for your account.</p>
-     
-      <p>You can reset your password by filling out the form below:</p>
-      <form action="${resetUrl}" method="POST" style="max-width: 300px; margin: 0 auto; padding: 20px; border: 1px solid #ccc; border-radius: 5px;">
-        <div style="margin-bottom: 15px;">
-          <label for="password" style="display: block; margin-bottom: 5px;">New Password</label>
-          <input type="password" name="password" id="password" placeholder="New password" required style="width: 93%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"/>
-        </div>
-        <div style="margin-bottom: 15px;">
-          <label for="confirmPassword" style="display: block; margin-bottom: 5px;">Confirm New Password</label>
-          <input type="password" name="confirmPassword" id="confirmPassword" placeholder="Confirm new password" required style="width: 93%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"/>
-        </div>
-        <button type="submit" style="width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Reset Password</button>
-      </form>
-      <p>If you did not request this, please ignore this email and your password will remain unchanged.</p>
-    `,
-  };
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      res.status(500).json({ error: "Failed to send email" });
-    } else {
-      res.status(200).json({ message: "Email sent successfully" });
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
     }
-  });
+
+    const token = jwt.sign({ email }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    // Send password reset email using Resend
+    await sendPasswordResetEmailService(email, user.name, token);
+
+    res.status(200).json({ message: "Password reset email sent successfully" });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: "Failed to send password reset email" });
+  }
 };
 
 const resetPassword = async (req, res) => {
