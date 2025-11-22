@@ -18,6 +18,8 @@ const dayChatSchema = new mongoose.Schema({
 
       image: String,
       video: String,
+      imageType: String, // MIME type of original image (for decryption)
+      videoType: String, // MIME type of original video (for decryption)
     },
   ],
   story: {

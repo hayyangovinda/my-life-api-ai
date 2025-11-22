@@ -25,6 +25,13 @@ const userSchema = new mongoose.Schema({
   },
   taskCompleted: { type: Number, default: 0 },
   name: { type: String, default: "" },
+
+  // Encrypted encryption key for client-side media encryption
+  // This key is encrypted with a password-derived key on the client
+  encryptedEncryptionKey: {
+    type: String,
+    default: null,
+  },
 });
 
 userSchema.pre("save", async function () {

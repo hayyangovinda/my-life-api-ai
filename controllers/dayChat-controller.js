@@ -174,30 +174,49 @@ function formatDateToStartOfDayUTC(date) {
 }
 
 const uploadImage = async (req, res) => {
-  const result = await cloudinary.uploader.upload(
-    req.files.image.tempFilePath,
-    {
-      use_filename: true,
-      folder: "file-upload",
+  try {
+    if (!req.files || !req.files.image) {
+      return res.status(400).json({ message: "No image file provided" });
     }
-  );
-  fs.unlinkSync(req.files.image.tempFilePath);
-  return res.status(200).json({ image: { src: result.secure_url } });
+
+    // Upload as 'raw' resource type since files are encrypted
+    // Cloudinary won't try to validate encrypted files as images
+    const result = await cloudinary.uploader.upload(
+      req.files.image.tempFilePath,
+      {
+        use_filename: true,
+        folder: "file-upload",
+        resource_type: "raw", // Important: treat as raw binary, not image
+      }
+    );
+    fs.unlinkSync(req.files.image.tempFilePath);
+    return res.status(200).json({ image: { src: result.secure_url } });
+  } catch (err) {
+    console.error("Error uploading image:", err);
+    return res.status(500).json({ message: err.message });
+  }
 };
 
 const uploadVideo = async (req, res) => {
   try {
+    if (!req.files || !req.files.video) {
+      return res.status(400).json({ message: "No video file provided" });
+    }
+
+    // Upload as 'raw' resource type since files are encrypted
+    // Cloudinary won't try to validate encrypted files as videos
     const result = await cloudinary.uploader.upload(
       req.files.video.tempFilePath,
       {
         use_filename: true,
         folder: "file-upload",
-        resource_type: "video",
+        resource_type: "raw", // Important: treat as raw binary, not video
       }
     );
     fs.unlinkSync(req.files.video.tempFilePath);
     return res.status(200).json({ video: { src: result.secure_url } });
   } catch (err) {
+    console.error("Error uploading video:", err);
     return res.status(500).json({ message: err.message });
   }
 };
