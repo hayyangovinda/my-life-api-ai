@@ -4,7 +4,7 @@ const fs = require("fs");
 const { encrypt, decrypt } = require("../utils/crypto");
 
 const getAllDayChats = async (req, res) => {
-  const { start, end, sorted } = req.query;
+  const { start, end, sorted, fields } = req.query;
 
   try {
     // Build the query object
@@ -23,22 +23,35 @@ const getAllDayChats = async (req, res) => {
     // Determine sort order
     const sortOrder = sorted ? 1 : -1;
 
-    const dayChats = await DayChat.find(query).sort({ date: sortOrder });
+    // Build the query with optional field selection
+    let dbQuery = DayChat.find(query).sort({ date: sortOrder });
 
-    // Decrypt stories before returning
+    // If specific fields are requested, select only those
+    if (fields) {
+      dbQuery = dbQuery.select(fields);
+    }
+
+    const dayChats = await dbQuery;
+
+    // Only decrypt stories if story field is included in the response
+    const shouldDecryptStories = !fields || fields.includes('story');
+
     const decryptedChats = dayChats.map((chat) => {
       const chatObj = chat.toObject();
-      const story = chatObj.story;
 
-      if (story && story.encryptedData) {
-        try {
-          chatObj.story = decrypt(story);
-        } catch (err) {
-          console.error(`Error decrypting story for chat ${chatObj._id}:`, err);
-          chatObj.story = "[Error decrypting story]";
+      if (shouldDecryptStories) {
+        const story = chatObj.story;
+
+        if (story && story.encryptedData) {
+          try {
+            chatObj.story = decrypt(story);
+          } catch (err) {
+            console.error(`Error decrypting story for chat ${chatObj._id}:`, err);
+            chatObj.story = "[Error decrypting story]";
+          }
+        } else {
+          chatObj.story = "";
         }
-      } else {
-        chatObj.story = "";
       }
 
       return chatObj;
