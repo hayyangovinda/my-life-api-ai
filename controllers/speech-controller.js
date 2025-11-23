@@ -13,6 +13,16 @@ const transcribeAudio = async (req, res) => {
   try {
     console.log("Transcribe audio request received");
 
+    // Check if OpenAI API key is configured
+    if (!OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY is not configured in environment variables");
+      return res.status(500).json({
+        error: "OpenAI API key not configured",
+        details: "OPENAI_API_KEY environment variable is missing"
+      });
+    }
+    console.log("OpenAI API key is configured");
+
     if (!req.file) {
       console.error("No file uploaded in request");
       return res.status(400).json({ error: "No file uploaded" });
@@ -55,18 +65,45 @@ const transcribeAudio = async (req, res) => {
     formData.append("file", fs.createReadStream(mp3FilePath));
 
     // Send request to OpenAI API
-    const response = await axios.post(
-      "https://api.openai.com/v1/audio/transcriptions",
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders(),
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-        },
-      }
-    );
+    let response;
+    try {
+      response = await axios.post(
+        "https://api.openai.com/v1/audio/transcriptions",
+        formData,
+        {
+          headers: {
+            ...formData.getHeaders(),
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+          },
+        }
+      );
+      console.log("OpenAI API response received successfully");
+    } catch (apiError) {
+      console.error("OpenAI API error:", {
+        status: apiError.response?.status,
+        statusText: apiError.response?.statusText,
+        data: apiError.response?.data,
+        message: apiError.message
+      });
 
-    console.log("OpenAI API response received successfully");
+      // Clean up the MP3 file
+      if (fs.existsSync(mp3FilePath)) {
+        fs.unlinkSync(mp3FilePath);
+      }
+
+      // Return specific error message
+      if (apiError.response?.status === 401) {
+        return res.status(500).json({
+          error: "OpenAI API authentication failed",
+          details: "API key is invalid or has insufficient permissions. Check your OPENAI_API_KEY in Railway environment variables."
+        });
+      } else {
+        return res.status(500).json({
+          error: "OpenAI API request failed",
+          details: apiError.response?.data?.error?.message || apiError.message
+        });
+      }
+    }
 
     // Clean up the MP3 file after processing
     fs.unlinkSync(mp3FilePath);
