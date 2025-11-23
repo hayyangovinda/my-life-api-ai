@@ -12,14 +12,17 @@
 const generateStoryPageHTML = (story, includeImages = true) => {
   const { date, story: storyText, inputs, title } = story;
 
-  // Format date
+  // Format date using UTC to ensure consistency across timezones
   const dateObj = new Date(date);
-  const formattedDate = dateObj.toLocaleDateString('en-GB', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  const weekday = weekdays[dateObj.getUTCDay()];
+  const day = dateObj.getUTCDate();
+  const month = months[dateObj.getUTCMonth()];
+  const year = dateObj.getUTCFullYear();
+
+  const formattedDate = `${weekday}, ${day} ${month} ${year}`;
 
   // Extract images from inputs if needed
   let imagesHTML = '';

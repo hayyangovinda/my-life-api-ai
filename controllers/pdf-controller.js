@@ -179,17 +179,17 @@ const generateDateRangePDF = async (req, res) => {
       };
     });
 
-    // Format date range for title
-    const startFormatted = start.toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
-    const endFormatted = end.toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
+    // Format date range for title using UTC to ensure consistency across timezones
+    const formatUTCDate = (date) => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const day = date.getUTCDate();
+      const month = months[date.getUTCMonth()];
+      const year = date.getUTCFullYear();
+      return `${day} ${month} ${year}`;
+    };
+
+    const startFormatted = formatUTCDate(start);
+    const endFormatted = formatUTCDate(end);
 
     // Generate HTML
     const html = generatePDFHTML(storiesData, includeImages, {
