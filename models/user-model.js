@@ -32,9 +32,23 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+
+  // Passcode lock feature
+  passcode: {
+    type: String,
+    default: null,
+  },
+  passcodeEnabled: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 userSchema.pre("save", async function () {
+  // Only hash the password if it has been modified (or is new)
+  if (!this.isModified('password')) {
+    return;
+  }
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
@@ -47,6 +61,19 @@ userSchema.methods.createJWT = function () {
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
   const isMatch = await bcrypt.compare(candidatePassword, this.password);
+  return isMatch;
+};
+
+userSchema.methods.hashPasscode = async function (passcode) {
+  const salt = await bcrypt.genSalt(10);
+  return await bcrypt.hash(passcode, salt);
+};
+
+userSchema.methods.comparePasscode = async function (candidatePasscode) {
+  if (!this.passcode) {
+    return false;
+  }
+  const isMatch = await bcrypt.compare(candidatePasscode, this.passcode);
   return isMatch;
 };
 
