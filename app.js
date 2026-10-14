@@ -24,6 +24,7 @@ const collectionRouter = require("./routes/collection-route");
 const pdfRouter = require("./routes/pdf-route");
 const app = express();
 const transcribeRouter = require("./routes/speech-route");
+const storageRouter = require("./routes/storage-route");
 const { upload } = require("./middlewares/upload-middleware");
 // app.use(fileUpload({ useTempFiles: true }));
 
@@ -44,6 +45,7 @@ app.use("/api/v1/ai", authenticateUser, aiRouter);
 app.use("/api/v1/collection", authenticateUser, collectionRouter);
 app.use("/api/v1/pdf", authenticateUser, pdfRouter);
 app.use("/api/v1/transcribe", upload.single("audio"), transcribeRouter);
+app.use("/api/v1/storage", storageRouter);
 
 const PORT = process.env.PORT || 8000;
 

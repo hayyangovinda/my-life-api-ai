@@ -42,6 +42,26 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+
+  // Cloud storage plan and usage tracking
+  storagePlanId: {
+    type: String,
+    default: 'free',
+  },
+  storageUsedBytes: {
+    type: Number,
+    default: 0,
+  },
+  storageUsedBreakdown: {
+    photos: { type: Number, default: 0 },
+    videos: { type: Number, default: 0 },
+    audio:  { type: Number, default: 0 },
+    other:  { type: Number, default: 0 },
+  },
+  storageNextRenewalDate: {
+    type: String,
+    default: null,
+  },
 });
 
 userSchema.pre("save", async function () {
