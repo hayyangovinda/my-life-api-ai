@@ -6,13 +6,27 @@
  *   2. Client uploads directly to Wasabi using the presigned URL(s)
  *   3. POST /:objectId/complete → server verifies via HeadObject, marks uploaded
  *
+ * Quota tracking:
+ *   storageReservedBytes — incremented when a session is created; decremented on
+ *                          completion, cancellation or stale cleanup.
+ *   storageUsedBytes     — incremented only after successful server-side verification;
+ *                          decremented only after confirmed deletion.
+ *   Quota guard:  storageUsedBytes + storageReservedBytes + newSize <= planLimit
+ *
  * Cancellation:
- *   POST /:objectId/cancel → aborts multipart (if applicable), releases quota
+ *   POST /:objectId/cancel → aborts multipart (if applicable), releases reservation
+ *
+ * Deletion:
+ *   DELETE /:objectId → removes object from Wasabi, decrements storageUsedBytes
  *
  * Download:
  *   GET /:objectId/signed-url → returns a time-limited presigned GET URL
+ *
+ * File listing:
+ *   GET / → paginated list of the authenticated user's uploaded objects
  */
 
+const mongoose = require('mongoose');
 const User = require('../models/user-model');
 const StorageObject = require('../models/storage-object-model');
 const { getStorageProvider } = require('../utils/storage-provider-factory');
@@ -44,8 +58,14 @@ function mimeToCategory(mimeType) {
   return 'other';
 }
 
-async function releaseQuota(userId, sizeBytes) {
-  await User.findByIdAndUpdate(userId, { $inc: { storageUsedBytes: -sizeBytes } });
+/**
+ * Release a pending quota reservation (upload cancelled or failed before completion).
+ * Decrements storageReservedBytes only — storageUsedBytes is not touched.
+ */
+async function releaseReservation(userId, sizeBytes) {
+  await User.findByIdAndUpdate(userId, {
+    $inc: { storageReservedBytes: -sizeBytes },
+  });
 }
 
 // ── POST /api/v1/media/upload-session ─────────────────────────────────────
@@ -54,6 +74,9 @@ async function releaseQuota(userId, sizeBytes) {
  * Initiate a new upload session.
  *
  * Body: { filename: string, mimeType: string, sizeBytes: number }
+ *
+ * Quota guard (atomic):
+ *   storageUsedBytes + storageReservedBytes + newSize <= planLimit
  *
  * Returns for single upload:
  *   { objectId, uploadType: 'single', presignedUrl, expiresAt }
@@ -78,7 +101,7 @@ const initiateUpload = async (req, res) => {
   }
   if (size > MAX_FILE_BYTES) {
     return res.status(413).json({
-      message: `File too large. Maximum allowed size is ${MAX_FILE_BYTES} bytes (200 MB).`,
+      message: `File too large. Maximum allowed size is ${MAX_FILE_BYTES} bytes (200 MiB).`,
     });
   }
   if (!ALL_ALLOWED_TYPES.has(mimeType)) {
@@ -96,7 +119,7 @@ const initiateUpload = async (req, res) => {
     });
   }
 
-  // ── Atomic quota reservation ──────────────────────────────────────────────
+  // ── Resolve plan limit ────────────────────────────────────────────────────
 
   const user = await User.findById(userId).select('storagePlanId');
   if (!user) return res.status(404).json({ message: 'User not found' });
@@ -105,14 +128,26 @@ const initiateUpload = async (req, res) => {
   const plan = getPlanById(planId) || getPlanById('free');
   const planLimit = plan.storageLimitBytes;
 
-  // Atomically check + reserve: only succeeds if current usage + new size <= limit
+  // ── Atomic quota reservation ──────────────────────────────────────────────
+  //
+  // Guard: storageUsedBytes + storageReservedBytes + newSize <= planLimit
+  //
+  // The $expr condition evaluates the arithmetic server-side so no two concurrent
+  // requests can both succeed when there is only enough headroom for one.
+  // On success, only storageReservedBytes is incremented (not storageUsedBytes).
+
   const updated = await User.findOneAndUpdate(
     {
       _id: userId,
       storagePlanId: planId,
-      $expr: { $lte: [{ $add: ['$storageUsedBytes', size] }, planLimit] },
+      $expr: {
+        $lte: [
+          { $add: ['$storageUsedBytes', '$storageReservedBytes', size] },
+          planLimit,
+        ],
+      },
     },
-    { $inc: { storageUsedBytes: size } },
+    { $inc: { storageReservedBytes: size } },
     { new: true }
   );
 
@@ -198,8 +233,8 @@ const initiateUpload = async (req, res) => {
       expiresAt: presignedUrlExpiresAt.toISOString(),
     });
   } catch (err) {
-    // URL generation failed — release the reserved quota before propagating
-    await releaseQuota(userId, size);
+    // URL generation failed — release the reservation before propagating
+    await releaseReservation(userId, size);
     throw err;
   }
 };
@@ -208,10 +243,12 @@ const initiateUpload = async (req, res) => {
 
 /**
  * Confirm that the client has finished uploading.
- * For multipart uploads, body must contain:
- *   { parts: [{ partNumber: number, etag: string }] }
- *
  * The server independently verifies via HeadObject before marking uploaded.
+ *
+ * On success:
+ *   storageReservedBytes  -= sizeBytes
+ *   storageUsedBytes      += sizeBytes
+ *   storageUsedBreakdown.{category} += sizeBytes
  */
 const completeUpload = async (req, res) => {
   const { objectId } = req.params;
@@ -259,8 +296,8 @@ const completeUpload = async (req, res) => {
     const meta = await provider.headObject(storageObject.objectKey);
     actualSize = meta.contentLength;
   } catch (err) {
-    // Object missing — upload did not land
-    await releaseQuota(userId, storageObject.sizeBytes);
+    // Object missing — upload did not land; release reservation
+    await releaseReservation(userId, storageObject.sizeBytes);
     storageObject.status = 'failed';
     storageObject.reservedUntil = null;
     await storageObject.save();
@@ -270,7 +307,7 @@ const completeUpload = async (req, res) => {
   }
 
   if (!actualSize || actualSize === 0) {
-    await releaseQuota(userId, storageObject.sizeBytes);
+    await releaseReservation(userId, storageObject.sizeBytes);
     try { await provider.delete(storageObject.objectKey); } catch (_) {}
     storageObject.status = 'failed';
     storageObject.reservedUntil = null;
@@ -285,9 +322,15 @@ const completeUpload = async (req, res) => {
   storageObject.reservedUntil = null;
   await storageObject.save();
 
-  // Update per-category breakdown (storageUsedBytes was already reserved at session creation)
+  // Atomically move reservation → finalized usage
   const breakdownField = `storageUsedBreakdown.${storageObject.category}`;
-  await User.findByIdAndUpdate(userId, { $inc: { [breakdownField]: storageObject.sizeBytes } });
+  await User.findByIdAndUpdate(userId, {
+    $inc: {
+      storageReservedBytes: -storageObject.sizeBytes,
+      storageUsedBytes: storageObject.sizeBytes,
+      [breakdownField]: storageObject.sizeBytes,
+    },
+  });
 
   res.status(200).json({
     objectId: storageObject._id,
@@ -348,13 +391,137 @@ const cancelUpload = async (req, res) => {
     }
   }
 
-  await releaseQuota(userId, storageObject.sizeBytes);
+  await releaseReservation(userId, storageObject.sizeBytes);
 
   storageObject.status = 'failed';
   storageObject.reservedUntil = null;
   await storageObject.save();
 
   res.status(200).json({ message: 'Upload cancelled' });
+};
+
+// ── DELETE /api/v1/media/:objectId ────────────────────────────────────────
+
+/**
+ * Permanently delete an uploaded object from Wasabi and release its quota.
+ *
+ * Security: findOneAndUpdate with {status:'uploaded'} atomically claims the
+ * deletion so concurrent requests cannot both decrement quota.  The deletion
+ * is idempotent — calling it again on an already-deleted object returns 200.
+ */
+const deleteObject = async (req, res) => {
+  const { objectId } = req.params;
+  const userId = req.user.userId;
+
+  const storageObject = await StorageObject.findById(objectId);
+  if (!storageObject) return res.status(404).json({ message: 'Object not found' });
+
+  if (storageObject.owner.toString() !== userId) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
+  // Idempotent — already deleted
+  if (storageObject.status === 'deleted') {
+    return res.status(200).json({ message: 'Already deleted' });
+  }
+
+  if (storageObject.status !== 'uploaded') {
+    return res.status(409).json({
+      message: `Cannot delete object with status '${storageObject.status}'. Only uploaded objects can be deleted.`,
+    });
+  }
+
+  const provider = getStorageProvider();
+
+  // Remove from Wasabi first.  S3 DeleteObject is idempotent, so a 404 is
+  // not an error — the object may have been removed out-of-band.
+  if (provider.isConfigured) {
+    try {
+      await provider.delete(storageObject.objectKey);
+    } catch (err) {
+      // Log but continue — we still want to update the DB and release quota.
+      // Any lingering object in Wasabi will be caught by reconciliation.
+      console.warn('[media] Wasabi delete failed for key:', storageObject.objectKey, err.message);
+    }
+  }
+
+  // Atomically claim the deletion: only one concurrent request can transition
+  // from 'uploaded' → 'deleted'.  If another request already did so the
+  // findOneAndUpdate returns null and we return 200 idempotently.
+  const claimed = await StorageObject.findOneAndUpdate(
+    { _id: objectId, status: 'uploaded' },
+    { $set: { status: 'deleted' } },
+    { new: true }
+  );
+
+  if (!claimed) {
+    // Race condition: another request already completed the deletion
+    return res.status(200).json({ message: 'Already deleted' });
+  }
+
+  // Decrement finalized usage counters
+  const breakdownField = `storageUsedBreakdown.${storageObject.category}`;
+  await User.findByIdAndUpdate(userId, {
+    $inc: {
+      storageUsedBytes: -storageObject.sizeBytes,
+      [breakdownField]: -storageObject.sizeBytes,
+    },
+  });
+
+  return res.status(200).json({ message: 'Deleted successfully', objectId });
+};
+
+// ── GET /api/v1/media/ ────────────────────────────────────────────────────
+
+/**
+ * List the authenticated user's uploaded storage objects.
+ *
+ * Query params:
+ *   category  — 'photos' | 'videos' | 'audio' | 'other'  (optional filter)
+ *   page      — 1-based page number (default 1)
+ *   limit     — items per page, max 100 (default 20)
+ */
+const listObjects = async (req, res) => {
+  const userId = req.user.userId;
+  const { category, page = '1', limit = '20' } = req.query;
+
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+  const skip = (pageNum - 1) * limitNum;
+
+  const filter = { owner: userId, status: 'uploaded' };
+  const validCategories = ['photos', 'videos', 'audio', 'other'];
+  if (category && validCategories.includes(category)) {
+    filter.category = category;
+  }
+
+  const [objects, total] = await Promise.all([
+    StorageObject.find(filter)
+      .select('_id originalFilename mimeType sizeBytes category createdAt dayChatId')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean(),
+    StorageObject.countDocuments(filter),
+  ]);
+
+  return res.status(200).json({
+    objects: objects.map((o) => ({
+      objectId: o._id,
+      filename: o.originalFilename,
+      mimeType: o.mimeType,
+      sizeBytes: o.sizeBytes,
+      category: o.category,
+      createdAt: o.createdAt,
+      dayChatId: o.dayChatId,
+    })),
+    pagination: {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages: Math.ceil(total / limitNum),
+    },
+  });
 };
 
 // ── GET /api/v1/media/:objectId/signed-url ────────────────────────────────
@@ -385,4 +552,11 @@ const getSignedDownloadUrl = async (req, res) => {
   res.status(200).json({ url, expiresAt });
 };
 
-module.exports = { initiateUpload, completeUpload, cancelUpload, getSignedDownloadUrl };
+module.exports = {
+  initiateUpload,
+  completeUpload,
+  cancelUpload,
+  deleteObject,
+  listObjects,
+  getSignedDownloadUrl,
+};

@@ -5,11 +5,20 @@ const {
   initiateUpload,
   completeUpload,
   cancelUpload,
+  deleteObject,
+  listObjects,
   getSignedDownloadUrl,
 } = require('../controllers/media-controller');
 
 // All media routes require a valid JWT
 router.use(authenticateUser);
+
+/**
+ * GET /api/v1/media/
+ * Query: category?, page?, limit?
+ * Returns a paginated list of the authenticated user's uploaded objects.
+ */
+router.get('/', listObjects);
 
 /**
  * POST /api/v1/media/upload-session
@@ -20,7 +29,6 @@ router.post('/upload-session', initiateUpload);
 
 /**
  * POST /api/v1/media/:objectId/complete
- * Body (multipart only): { parts: [{ partNumber, etag }] }
  * Server verifies upload via HeadObject then marks the object as uploaded.
  */
 router.post('/:objectId/complete', completeUpload);
@@ -30,6 +38,13 @@ router.post('/:objectId/complete', completeUpload);
  * Aborts a pending upload, releases the reserved quota.
  */
 router.post('/:objectId/cancel', cancelUpload);
+
+/**
+ * DELETE /api/v1/media/:objectId
+ * Permanently removes an uploaded object from Wasabi and decrements quota.
+ * Idempotent — returns 200 for already-deleted objects.
+ */
+router.delete('/:objectId', deleteObject);
 
 /**
  * GET /api/v1/media/:objectId/signed-url

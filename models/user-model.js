@@ -48,10 +48,28 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'free',
   },
+
+  /**
+   * Bytes confirmed as used by completed (status = 'uploaded') storage objects.
+   * Updated atomically on upload completion and on file deletion.
+   * Recalculated by the reconciliation endpoint when drift is detected.
+   */
   storageUsedBytes: {
     type: Number,
     default: 0,
   },
+
+  /**
+   * Bytes reserved by in-progress (status = 'pending') uploads.
+   * Incremented at upload-session creation; decremented on completion or cancellation.
+   * Combined with storageUsedBytes for quota enforcement:
+   *   storageUsedBytes + storageReservedBytes + newFileSize <= planLimit
+   */
+  storageReservedBytes: {
+    type: Number,
+    default: 0,
+  },
+
   storageUsedBreakdown: {
     photos: { type: Number, default: 0 },
     videos: { type: Number, default: 0 },

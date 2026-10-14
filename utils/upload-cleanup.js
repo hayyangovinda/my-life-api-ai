@@ -52,9 +52,9 @@ async function cleanupStaleUploads() {
         }
       }
 
-      // Release quota reservation
+      // Release quota reservation (only reserved bytes, not finalized usage)
       await User.findByIdAndUpdate(obj.owner, {
-        $inc: { storageUsedBytes: -obj.sizeBytes },
+        $inc: { storageReservedBytes: -obj.sizeBytes },
       });
 
       obj.status = 'failed';

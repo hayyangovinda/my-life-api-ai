@@ -9,6 +9,22 @@
  *   WASABI_ENDPOINT           — Full endpoint URL (e.g. https://s3.us-east-1.wasabisys.com)
  */
 
+// ── Unit convention ───────────────────────────────────────────────────────
+//
+// All byte values in this module and throughout the application use *binary*
+// prefixes (1 KiB = 1 024 bytes, 1 MiB = 1 024² bytes, 1 GiB = 1 024³ bytes).
+// Display labels use the common MB / GB notation; in this codebase those labels
+// always refer to binary equivalents (MiB / GiB), matching the behaviour of
+// macOS, Windows and most Linux distributions.
+//
+// Frontend: storage.service.ts formatBytes() uses the same 1 024-based divisors,
+// so displayed values are self-consistent with the limits defined here.
+
+/** 1 mebibyte expressed as an integer byte count (1 024 × 1 024). */
+const BYTES_PER_MIB = 1024 * 1024;
+/** 1 gibibyte expressed as an integer byte count (1 024³). */
+const BYTES_PER_GIB = 1024 * 1024 * 1024;
+
 // ── File type allowlists ──────────────────────────────────────────────────
 
 const ALLOWED_PHOTO_TYPES = new Set([
@@ -103,4 +119,6 @@ module.exports = {
   MULTIPART_PART_BYTES,
   PRESIGNED_URL_TTL_SECONDS,
   UPLOAD_RESERVATION_TTL_MS,
+  BYTES_PER_MIB,
+  BYTES_PER_GIB,
 };
