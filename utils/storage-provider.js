@@ -118,6 +118,18 @@ class StorageProvider {
   }
 
   /**
+   * List all parts that have been uploaded for a multipart upload.
+   *
+   * @param {string} key
+   * @param {string} uploadId
+   * @returns {Promise<{ partNumber: number, etag: string }[]>}
+   */
+  // eslint-disable-next-line no-unused-vars
+  async listParts(key, uploadId) {
+    throw new Error('StorageProvider.listParts() not implemented');
+  }
+
+  /**
    * Abort a multipart upload and release any uploaded parts.
    *
    * @param {string} key

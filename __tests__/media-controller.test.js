@@ -64,6 +64,10 @@ function makeMockProvider(overrides = {}) {
     createPresignedPutUrl: jest.fn().mockResolvedValue('https://wasabi.example.com/put-url'),
     createMultipartUpload: jest.fn().mockResolvedValue('upload-id-123'),
     createPresignedPartUrl: jest.fn().mockResolvedValue('https://wasabi.example.com/part-url'),
+    listParts: jest.fn().mockResolvedValue([
+      { partNumber: 1, etag: '"etag1"' },
+      { partNumber: 2, etag: '"etag2"' },
+    ]),
     completeMultipartUpload: jest.fn().mockResolvedValue(undefined),
     headObject: jest.fn().mockResolvedValue({ contentLength: 1024, contentType: 'image/jpeg' }),
     delete: jest.fn().mockResolvedValue(undefined),
@@ -323,7 +327,12 @@ describe('completeUpload()', () => {
     );
   });
 
-  test('calls completeMultipartUpload and verifies for multipart', async () => {
+  test('calls listParts then completeMultipartUpload for multipart (no body required)', async () => {
+    const parts = [
+      { partNumber: 1, etag: '"etag1"' },
+      { partNumber: 2, etag: '"etag2"' },
+    ];
+    mockProvider.listParts.mockResolvedValue(parts);
     StorageObject.findById.mockResolvedValue(
       makeStorageObject({
         uploadType: 'multipart',
@@ -331,15 +340,9 @@ describe('completeUpload()', () => {
         partsCount: 2,
       })
     );
-    const parts = [
-      { partNumber: 1, etag: '"etag1"' },
-      { partNumber: 2, etag: '"etag2"' },
-    ];
     const res = makeRes();
-    await completeUpload(
-      makeReq({ params: { objectId: 'obj123' }, body: { parts } }),
-      res
-    );
+    await completeUpload(makeReq({ params: { objectId: 'obj123' } }), res);
+    expect(mockProvider.listParts).toHaveBeenCalledWith('user123/test-uuid.jpg', 'mp-id');
     expect(mockProvider.completeMultipartUpload).toHaveBeenCalledWith(
       'user123/test-uuid.jpg',
       'mp-id',
@@ -348,16 +351,14 @@ describe('completeUpload()', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  test('returns 400 for multipart when parts array has wrong length', async () => {
+  test('returns 422 for multipart when listParts returns wrong part count', async () => {
+    mockProvider.listParts.mockResolvedValue([{ partNumber: 1, etag: '"etag1"' }]);
     StorageObject.findById.mockResolvedValue(
       makeStorageObject({ uploadType: 'multipart', multipartUploadId: 'mp-id', partsCount: 3 })
     );
     const res = makeRes();
-    await completeUpload(
-      makeReq({ params: { objectId: 'obj123' }, body: { parts: [{ partNumber: 1, etag: 'e' }] } }),
-      res
-    );
-    expect(res.status).toHaveBeenCalledWith(400);
+    await completeUpload(makeReq({ params: { objectId: 'obj123' } }), res);
+    expect(res.status).toHaveBeenCalledWith(422);
   });
 });
 

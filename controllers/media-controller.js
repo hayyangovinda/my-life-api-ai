@@ -237,17 +237,12 @@ const completeUpload = async (req, res) => {
 
   const provider = getStorageProvider();
 
-  // Finalise multipart if needed
+  // Finalise multipart if needed — ETags are fetched server-side via ListParts
   if (storageObject.uploadType === 'multipart') {
-    const { parts } = req.body;
-    if (!Array.isArray(parts) || parts.length === 0) {
-      return res.status(400).json({
-        message: 'parts array is required for multipart upload completion',
-      });
-    }
+    const parts = await provider.listParts(storageObject.objectKey, storageObject.multipartUploadId);
     if (parts.length !== storageObject.partsCount) {
-      return res.status(400).json({
-        message: `Expected ${storageObject.partsCount} parts but received ${parts.length}`,
+      return res.status(422).json({
+        message: `Expected ${storageObject.partsCount} parts but only ${parts.length} found in storage`,
       });
     }
 

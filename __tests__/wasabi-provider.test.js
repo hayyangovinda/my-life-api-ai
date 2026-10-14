@@ -18,6 +18,7 @@ jest.mock('@aws-sdk/client-s3', () => ({
   UploadPartCommand: jest.fn().mockImplementation((input) => ({ _cmd: 'UploadPart', ...input })),
   CompleteMultipartUploadCommand: jest.fn().mockImplementation((input) => ({ _cmd: 'CompleteMultipart', ...input })),
   AbortMultipartUploadCommand: jest.fn().mockImplementation((input) => ({ _cmd: 'AbortMultipart', ...input })),
+  ListPartsCommand: jest.fn().mockImplementation((input) => ({ _cmd: 'ListParts', ...input })),
 }));
 
 jest.mock('@aws-sdk/s3-request-presigner', () => ({
@@ -124,6 +125,47 @@ describe('WasabiProvider', () => {
 
     test('exists() throws with descriptive message', async () => {
       await expect(unconfigured.exists('key')).rejects.toThrow('not configured');
+    });
+
+    test('listParts() throws with descriptive message', async () => {
+      await expect(unconfigured.listParts('key', 'upload-id')).rejects.toThrow('not configured');
+    });
+  });
+
+  // ── listParts() ────────────────────────────────────────────────────────────
+
+  describe('listParts()', () => {
+    test('returns mapped parts array from ListPartsCommand response', async () => {
+      const p = new WasabiProvider(FULL_CONFIG);
+      mockSend.mockResolvedValue({
+        Parts: [
+          { PartNumber: 1, ETag: '"etag-part-1"' },
+          { PartNumber: 2, ETag: '"etag-part-2"' },
+        ],
+      });
+
+      const parts = await p.listParts('userId/file.mp4', 'upload-id-abc');
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(parts).toEqual([
+        { partNumber: 1, etag: '"etag-part-1"' },
+        { partNumber: 2, etag: '"etag-part-2"' },
+      ]);
+    });
+
+    test('returns empty array when Parts is undefined', async () => {
+      const p = new WasabiProvider(FULL_CONFIG);
+      mockSend.mockResolvedValue({});
+
+      const parts = await p.listParts('key', 'upload-id');
+      expect(parts).toEqual([]);
+    });
+
+    test('propagates S3 errors to the caller', async () => {
+      const p = new WasabiProvider(FULL_CONFIG);
+      mockSend.mockRejectedValue(new Error('NoSuchUpload'));
+
+      await expect(p.listParts('key', 'bad-upload-id')).rejects.toThrow('NoSuchUpload');
     });
   });
 

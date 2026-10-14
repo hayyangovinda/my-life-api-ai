@@ -20,6 +20,7 @@ const {
   UploadPartCommand,
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
+  ListPartsCommand,
 } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { PRESIGNED_URL_TTL_SECONDS } = require('../config/storage-config');
@@ -310,6 +311,23 @@ class WasabiProvider extends StorageProvider {
         },
       })
     );
+  }
+
+  /**
+   * List all parts that have been uploaded for a multipart upload.
+   * Used by the server to fetch ETags without requiring the client to track them.
+   *
+   * @param {string} key
+   * @param {string} uploadId
+   * @returns {Promise<{ partNumber: number, etag: string }[]>}
+   */
+  async listParts(key, uploadId) {
+    this._assertConfigured('listParts');
+
+    const response = await this._client.send(
+      new ListPartsCommand({ Bucket: this._bucket, Key: key, UploadId: uploadId })
+    );
+    return (response.Parts || []).map(p => ({ partNumber: p.PartNumber, etag: p.ETag }));
   }
 
   /**
