@@ -26,6 +26,7 @@ const app = express();
 const transcribeRouter = require("./routes/speech-route");
 const storageRouter = require("./routes/storage-route");
 const { upload } = require("./middlewares/upload-middleware");
+const { validateWasabiConfig } = require("./config/storage-config");
 // app.use(fileUpload({ useTempFiles: true }));
 
 app.use(express.static("./public"));
@@ -51,6 +52,10 @@ const PORT = process.env.PORT || 8000;
 
 const start = async () => {
   try {
+    // Validate optional storage provider config — logs a warning if not set,
+    // but never prints secret values and does not prevent startup.
+    validateWasabiConfig();
+
     await connectDB(process.env.MONGO_URI);
     app.listen(PORT, () => {
       console.log(`Server is listening on port ${PORT}`);
