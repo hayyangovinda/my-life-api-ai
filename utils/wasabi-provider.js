@@ -16,8 +16,13 @@ const {
   GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const { PRESIGNED_URL_TTL_SECONDS } = require('../config/storage-config');
 const crypto = require('crypto');
 const StorageProvider = require('./storage-provider');
 
@@ -197,6 +202,133 @@ class WasabiProvider extends StorageProvider {
       }
       throw err;
     }
+  }
+
+  /** @returns {string|null} */
+  get bucket() {
+    return this._bucket;
+  }
+
+  /**
+   * Generate a presigned PUT URL so a client can upload directly to Wasabi.
+   *
+   * @param {string} key
+   * @param {{ contentType?: string, expiresIn?: number }} [options]
+   * @returns {Promise<string>}
+   */
+  async createPresignedPutUrl(key, options = {}) {
+    this._assertConfigured('createPresignedPutUrl');
+
+    const command = new PutObjectCommand({
+      Bucket: this._bucket,
+      Key: key,
+      ContentType: options.contentType,
+    });
+    return getSignedUrl(this._client, command, {
+      expiresIn: options.expiresIn ?? PRESIGNED_URL_TTL_SECONDS,
+    });
+  }
+
+  /**
+   * Fetch object metadata without downloading the body.
+   *
+   * @param {string} key
+   * @returns {Promise<{ contentLength: number, contentType: string, lastModified: Date }>}
+   */
+  async headObject(key) {
+    this._assertConfigured('headObject');
+
+    const response = await this._client.send(
+      new HeadObjectCommand({ Bucket: this._bucket, Key: key })
+    );
+    return {
+      contentLength: response.ContentLength,
+      contentType: response.ContentType,
+      lastModified: response.LastModified,
+    };
+  }
+
+  /**
+   * Initiate an S3 multipart upload.
+   *
+   * @param {string} key
+   * @param {{ contentType?: string }} [options]
+   * @returns {Promise<string>} uploadId
+   */
+  async createMultipartUpload(key, options = {}) {
+    this._assertConfigured('createMultipartUpload');
+
+    const response = await this._client.send(
+      new CreateMultipartUploadCommand({
+        Bucket: this._bucket,
+        Key: key,
+        ContentType: options.contentType,
+      })
+    );
+    return response.UploadId;
+  }
+
+  /**
+   * Generate a presigned URL for uploading one part.
+   *
+   * @param {string} key
+   * @param {string} uploadId
+   * @param {number} partNumber  1-based
+   * @param {number} [expiresIn=3600]
+   * @returns {Promise<string>}
+   */
+  async createPresignedPartUrl(key, uploadId, partNumber, expiresIn = PRESIGNED_URL_TTL_SECONDS) {
+    this._assertConfigured('createPresignedPartUrl');
+
+    const command = new UploadPartCommand({
+      Bucket: this._bucket,
+      Key: key,
+      UploadId: uploadId,
+      PartNumber: partNumber,
+    });
+    return getSignedUrl(this._client, command, { expiresIn });
+  }
+
+  /**
+   * Finalise a multipart upload.
+   *
+   * @param {string} key
+   * @param {string} uploadId
+   * @param {{ partNumber: number, etag: string }[]} parts
+   * @returns {Promise<void>}
+   */
+  async completeMultipartUpload(key, uploadId, parts) {
+    this._assertConfigured('completeMultipartUpload');
+
+    await this._client.send(
+      new CompleteMultipartUploadCommand({
+        Bucket: this._bucket,
+        Key: key,
+        UploadId: uploadId,
+        MultipartUpload: {
+          Parts: parts.map((p) => ({ PartNumber: p.partNumber, ETag: p.etag })),
+        },
+      })
+    );
+  }
+
+  /**
+   * Abort a multipart upload and discard any uploaded parts.
+   *
+   * @param {string} key
+   * @param {string} uploadId
+   * @returns {Promise<void>}
+   */
+  async abortMultipartUpload(key, uploadId) {
+    this._assertConfigured('abortMultipartUpload');
+
+    await this._client.send(
+      new AbortMultipartUploadCommand({
+        Bucket: this._bucket,
+        Key: key,
+        UploadId: uploadId,
+      })
+    );
   }
 
   // ── Internal helpers ──────────────────────────────────────────────────────

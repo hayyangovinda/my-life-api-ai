@@ -14,6 +14,10 @@ jest.mock('@aws-sdk/client-s3', () => ({
   GetObjectCommand: jest.fn().mockImplementation((input) => ({ _cmd: 'Get', ...input })),
   DeleteObjectCommand: jest.fn().mockImplementation((input) => ({ _cmd: 'Delete', ...input })),
   HeadObjectCommand: jest.fn().mockImplementation((input) => ({ _cmd: 'Head', ...input })),
+  CreateMultipartUploadCommand: jest.fn().mockImplementation((input) => ({ _cmd: 'CreateMultipart', ...input })),
+  UploadPartCommand: jest.fn().mockImplementation((input) => ({ _cmd: 'UploadPart', ...input })),
+  CompleteMultipartUploadCommand: jest.fn().mockImplementation((input) => ({ _cmd: 'CompleteMultipart', ...input })),
+  AbortMultipartUploadCommand: jest.fn().mockImplementation((input) => ({ _cmd: 'AbortMultipart', ...input })),
 }));
 
 jest.mock('@aws-sdk/s3-request-presigner', () => ({

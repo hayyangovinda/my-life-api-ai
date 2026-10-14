@@ -100,6 +100,44 @@ const storageObjectSchema = new mongoose.Schema(
       enum: ['photos', 'videos', 'audio', 'other'],
       required: true,
     },
+
+    // ── Upload session tracking ────────────────────────────────────────────────
+
+    /** Strategy used for this upload: direct single PUT or S3 multipart. */
+    uploadType: {
+      type: String,
+      enum: ['single', 'multipart'],
+      default: 'single',
+    },
+
+    /** S3 UploadId returned by CreateMultipartUpload (null for single-PUT uploads). */
+    multipartUploadId: {
+      type: String,
+      default: null,
+    },
+
+    /** Number of parts generated for this multipart upload (null for single-PUT). */
+    partsCount: {
+      type: Number,
+      default: null,
+    },
+
+    /** When the presigned upload URL(s) expire (for client reference). */
+    presignedUrlExpiresAt: {
+      type: Date,
+      default: null,
+    },
+
+    /**
+     * Deadline for this pending upload's quota reservation.
+     * Stale-cleanup releases the reserved bytes and marks the record 'failed'
+     * once this timestamp passes without a successful completion call.
+     */
+    reservedUntil: {
+      type: Date,
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true } // adds createdAt and updatedAt automatically
 );

@@ -9,6 +9,41 @@
  *   WASABI_ENDPOINT           — Full endpoint URL (e.g. https://s3.us-east-1.wasabisys.com)
  */
 
+// ── File type allowlists ──────────────────────────────────────────────────
+
+const ALLOWED_PHOTO_TYPES = new Set([
+  'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+  'image/webp', 'image/heic', 'image/heif',
+]);
+
+const ALLOWED_VIDEO_TYPES = new Set([
+  'video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo',
+]);
+
+const ALLOWED_AUDIO_TYPES = new Set([
+  'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav',
+  'audio/ogg', 'audio/webm', 'audio/flac', 'audio/aac',
+]);
+
+// ── Upload size and multipart thresholds ──────────────────────────────────
+
+/** Absolute maximum file size (200 MB). */
+const MAX_FILE_BYTES = 200 * 1024 * 1024;
+
+/** Files larger than this threshold use multipart upload (50 MB). */
+const MULTIPART_THRESHOLD_BYTES = 50 * 1024 * 1024;
+
+/** Target size per multipart part (10 MB). */
+const MULTIPART_PART_BYTES = 10 * 1024 * 1024;
+
+/** Presigned URL time-to-live in seconds (1 hour). */
+const PRESIGNED_URL_TTL_SECONDS = 3600;
+
+/** How long a pending upload reservation is held before stale cleanup (2 hours). */
+const UPLOAD_RESERVATION_TTL_MS = 2 * 60 * 60 * 1000;
+
+// ── Wasabi required env vars ──────────────────────────────────────────────
+
 const REQUIRED_WASABI_VARS = [
   'WASABI_ACCESS_KEY_ID',
   'WASABI_SECRET_ACCESS_KEY',
@@ -56,4 +91,16 @@ function getWasabiConfig() {
   };
 }
 
-module.exports = { validateWasabiConfig, getWasabiConfig, REQUIRED_WASABI_VARS };
+module.exports = {
+  validateWasabiConfig,
+  getWasabiConfig,
+  REQUIRED_WASABI_VARS,
+  ALLOWED_PHOTO_TYPES,
+  ALLOWED_VIDEO_TYPES,
+  ALLOWED_AUDIO_TYPES,
+  MAX_FILE_BYTES,
+  MULTIPART_THRESHOLD_BYTES,
+  MULTIPART_PART_BYTES,
+  PRESIGNED_URL_TTL_SECONDS,
+  UPLOAD_RESERVATION_TTL_MS,
+};

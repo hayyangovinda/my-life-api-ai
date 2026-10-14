@@ -25,8 +25,10 @@ const pdfRouter = require("./routes/pdf-route");
 const app = express();
 const transcribeRouter = require("./routes/speech-route");
 const storageRouter = require("./routes/storage-route");
+const mediaRouter = require("./routes/media-route");
 const { upload } = require("./middlewares/upload-middleware");
 const { validateWasabiConfig } = require("./config/storage-config");
+const { cleanupStaleUploads } = require("./utils/upload-cleanup");
 // app.use(fileUpload({ useTempFiles: true }));
 
 app.use(express.static("./public"));
@@ -47,6 +49,7 @@ app.use("/api/v1/collection", authenticateUser, collectionRouter);
 app.use("/api/v1/pdf", authenticateUser, pdfRouter);
 app.use("/api/v1/transcribe", upload.single("audio"), transcribeRouter);
 app.use("/api/v1/storage", storageRouter);
+app.use("/api/v1/media", mediaRouter);
 
 const PORT = process.env.PORT || 8000;
 
@@ -57,6 +60,10 @@ const start = async () => {
     validateWasabiConfig();
 
     await connectDB(process.env.MONGO_URI);
+    // Non-blocking stale upload cleanup — runs after DB is ready
+    cleanupStaleUploads().catch((err) =>
+      console.error('[media] Stale upload cleanup failed:', err)
+    );
     app.listen(PORT, () => {
       console.log(`Server is listening on port ${PORT}`);
     });
