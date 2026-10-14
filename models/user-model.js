@@ -80,6 +80,49 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+
+  // ── Subscription state (set only by server-side webhook processing) ────────
+  //
+  // Clients cannot alter these fields directly.  Plan entitlements are granted
+  // only after RevenueCat validates the purchase with the relevant store.
+
+  /**
+   * RevenueCat subscription status.
+   * null   = free plan (no active subscription)
+   * active = subscription is paid and current
+   * cancelled = subscription cancelled by user; access until subscriptionExpiresAt
+   * in_grace_period = payment failed but within store grace period
+   * billing_retry = RevenueCat is retrying a failed payment
+   * expired = subscription has lapsed; access revoked
+   */
+  subscriptionStatus: {
+    type: String,
+    enum: ['active', 'cancelled', 'in_grace_period', 'billing_retry', 'expired', null],
+    default: null,
+  },
+
+  /** 'ios' | 'android' | 'web' | null */
+  subscriptionPlatform: {
+    type: String,
+    enum: ['ios', 'android', 'web', null],
+    default: null,
+  },
+
+  /** Store product identifier, e.g. 'mylife_premium_monthly'. */
+  subscriptionProductId: {
+    type: String,
+    default: null,
+  },
+
+  /**
+   * Date when the current billing period ends.
+   * The plan remains active until this date even after cancellation.
+   * Null for free plans or lifetime subscriptions.
+   */
+  subscriptionExpiresAt: {
+    type: Date,
+    default: null,
+  },
 });
 
 userSchema.pre("save", async function () {

@@ -26,6 +26,7 @@ const app = express();
 const transcribeRouter = require("./routes/speech-route");
 const storageRouter = require("./routes/storage-route");
 const mediaRouter = require("./routes/media-route");
+const billingRouter = require("./routes/billing-route");
 const { upload } = require("./middlewares/upload-middleware");
 const { validateWasabiConfig } = require("./config/storage-config");
 const { cleanupStaleUploads } = require("./utils/upload-cleanup");
@@ -50,6 +51,7 @@ app.use("/api/v1/pdf", authenticateUser, pdfRouter);
 app.use("/api/v1/transcribe", upload.single("audio"), transcribeRouter);
 app.use("/api/v1/storage", storageRouter);
 app.use("/api/v1/media", mediaRouter);
+app.use("/api/v1/billing", billingRouter);
 
 const PORT = process.env.PORT || 8000;
 
