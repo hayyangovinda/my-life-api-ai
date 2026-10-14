@@ -2,11 +2,11 @@
 const crypto = require("crypto");
 
 const ALGORITHM = "aes-256-gcm";
-const KEY = Buffer.from(process.env.STORY_ENCRYPTION_KEY); // 32 bytes
+const getKey = () => Buffer.from(process.env.STORY_ENCRYPTION_KEY, "hex"); // 32 bytes
 
 function encrypt(text) {
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv(ALGORITHM, KEY, iv);
+  const cipher = crypto.createCipheriv(ALGORITHM, getKey(), iv);
   let encrypted = cipher.update(text, "utf8", "hex");
   encrypted += cipher.final("hex");
   const authTag = cipher.getAuthTag().toString("hex");
@@ -18,7 +18,7 @@ function decrypt(encryptedObj) {
   const { iv, encryptedData, authTag } = encryptedObj;
   const decipher = crypto.createDecipheriv(
     ALGORITHM,
-    KEY,
+    getKey(),
     Buffer.from(iv, "hex")
   );
   decipher.setAuthTag(Buffer.from(authTag, "hex"));
