@@ -2,7 +2,7 @@
 FROM node:20-bullseye-slim
 
 # Install Chromium, FFmpeg, and dependencies required by Puppeteer
-RUN apt-get update && apt-get install -y \
+RUN apt-get update --fix-missing && apt-get install -y --fix-missing \
     chromium \
     chromium-sandbox \
     ffmpeg \
