@@ -1,6 +1,7 @@
 const User = require("../models/user-model");
 const Collection = require("../models/collection-model");
 const jwt = require("jsonwebtoken");
+const { OAuth2Client } = require("google-auth-library");
 const { sendVerificationEmail: sendVerificationEmailService, sendPasswordResetEmail: sendPasswordResetEmailService } = require("../utils/email-service");
 
 const register = async (req, res) => {
@@ -182,9 +183,78 @@ const resetPassword = async (req, res) => {
   res.status(200).json({ message: "Password reset successful" });
 };
 
+const googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({ error: "No credential provided" });
+    }
+
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { sub, email, name } = payload;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // New user — create Google account (auto-verified)
+      user = new User({
+        email,
+        name: name || "",
+        googleId: sub,
+        authProvider: "google",
+        isVerified: true,
+      });
+      await user.save();
+
+      await Collection.create({
+        name: "Favorites",
+        description: "Your favorite memories",
+        icon: "⭐",
+        isDefault: true,
+        createdBy: user._id,
+      });
+    } else if (user.authProvider === "email") {
+      // Email-based account already exists with this email
+      return res.status(400).json({
+        error: "An account with this email already exists. Please log in with your email and password.",
+        code: "EMAIL_ACCOUNT_EXISTS",
+      });
+    } else {
+      // Existing Google user — ensure Favorites collection exists
+      const favoritesExists = await Collection.findOne({
+        createdBy: user._id,
+        isDefault: true,
+      });
+      if (!favoritesExists) {
+        await Collection.create({
+          name: "Favorites",
+          description: "Your favorite memories",
+          icon: "⭐",
+          isDefault: true,
+          createdBy: user._id,
+        });
+      }
+    }
+
+    const token = user.createJWT();
+    res.status(200).json({ token, userId: user._id });
+  } catch (error) {
+    console.error("Google login error:", error);
+    res.status(401).json({ error: "Google authentication failed" });
+  }
+};
+
 module.exports = {
   register,
   login,
+  googleLogin,
   sendVerificationEmail,
   verifyEmail,
   checkVerificationStatus,
