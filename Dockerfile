@@ -1,8 +1,8 @@
 # Use Node.js LTS version with Debian (better Puppeteer support)
-FROM node:20-bullseye-slim
+FROM node:20-bookworm-slim
 
 # Install Chromium, FFmpeg, and dependencies required by Puppeteer
-RUN apt-get update --fix-missing && apt-get install -y --fix-missing \
+RUN apt-get update && apt-get install -y \
     chromium \
     chromium-sandbox \
     ffmpeg \
