@@ -136,20 +136,29 @@ const initiateUpload = async (req, res) => {
   // requests can both succeed when there is only enough headroom for one.
   // On success, only storageReservedBytes is incremented (not storageUsedBytes).
 
-  const updated = await User.findOneAndUpdate(
-    {
-      _id: userId,
-      storagePlanId: planId,
-      $expr: {
-        $lte: [
-          { $add: ['$storageUsedBytes', '$storageReservedBytes', size] },
-          planLimit,
-        ],
-      },
-    },
-    { $inc: { storageReservedBytes: size } },
-    { new: true }
-  );
+  // Skip quota enforcement in development so local testing is unrestricted.
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  const updated = isDev
+    ? await User.findByIdAndUpdate(
+        userId,
+        { $inc: { storageReservedBytes: size } },
+        { new: true }
+      )
+    : await User.findOneAndUpdate(
+        {
+          _id: userId,
+          storagePlanId: planId,
+          $expr: {
+            $lte: [
+              { $add: ['$storageUsedBytes', '$storageReservedBytes', size] },
+              planLimit,
+            ],
+          },
+        },
+        { $inc: { storageReservedBytes: size } },
+        { new: true }
+      );
 
   if (!updated) {
     return res.status(409).json({
