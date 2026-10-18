@@ -191,10 +191,15 @@ const googleLogin = async (req, res) => {
       return res.status(400).json({ error: "No credential provided" });
     }
 
-    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    const validAudiences = [
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_ID_IOS,
+    ].filter(Boolean);
+
+    const client = new OAuth2Client();
     const ticket = await client.verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: validAudiences,
     });
 
     const payload = ticket.getPayload();
