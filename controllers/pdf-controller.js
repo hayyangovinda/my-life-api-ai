@@ -35,6 +35,10 @@ const generateStoryPDF = async (req, res) => {
       }
     }
 
+    if (!plainStory || !plainStory.trim()) {
+      return res.status(404).json({ message: 'No story available for this day' });
+    }
+
     // Prepare story object for template
     const storyData = {
       date: dayChatDoc.date,
@@ -159,25 +163,29 @@ const generateDateRangePDF = async (req, res) => {
       return res.status(404).json({ message: 'No stories found in this date range' });
     }
 
-    // Decrypt and prepare stories
-    const storiesData = dayChats.map(dayChat => {
+    // Decrypt and prepare stories, skip days with no story
+    const storiesData = dayChats.reduce((acc, dayChat) => {
+      if (!dayChat.story || !dayChat.story.encryptedData) return acc;
       let plainStory = '';
-      if (dayChat.story && dayChat.story.encryptedData) {
-        try {
-          plainStory = decrypt(dayChat.story);
-        } catch (err) {
-          console.error('Decryption error for story:', dayChat._id, err);
-          plainStory = '[Story decryption failed]';
-        }
+      try {
+        plainStory = decrypt(dayChat.story);
+      } catch (err) {
+        console.error('Decryption error for story:', dayChat._id, err);
+        return acc;
       }
-
-      return {
+      if (!plainStory || !plainStory.trim()) return acc;
+      acc.push({
         date: dayChat.date,
         story: plainStory,
         inputs: dayChat.inputs || [],
         title: dayChat.title || null
-      };
-    });
+      });
+      return acc;
+    }, []);
+
+    if (storiesData.length === 0) {
+      return res.status(404).json({ message: 'No days with stories found in this date range' });
+    }
 
     // Format date range for title using UTC to ensure consistency across timezones
     const formatUTCDate = (date) => {

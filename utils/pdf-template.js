@@ -22,8 +22,6 @@ const generateStoryPageHTML = (story, includeImages = true) => {
   const month = months[dateObj.getUTCMonth()];
   const year = dateObj.getUTCFullYear();
 
-  const formattedDate = `${weekday}, ${day} ${month} ${year}`;
-
   // Extract images from inputs if needed
   let imagesHTML = '';
   if (includeImages && inputs && inputs.length > 0) {
@@ -32,27 +30,31 @@ const generateStoryPageHTML = (story, includeImages = true) => {
       .map(input => input.image);
 
     if (imageUrls.length > 0) {
+      const isSingle = imageUrls.length === 1;
       imagesHTML = `
-        <div class="images">
+        <div class="images ${isSingle ? 'images-single' : ''}">
           ${imageUrls.map(url => `
-            <img src="${url}" alt="Memory" class="story-image" />
+            <div class="image-wrapper">
+              <img src="${url}" alt="Memory" class="story-image" />
+            </div>
           `).join('')}
         </div>
       `;
     }
   }
 
-  // Generate title section
-  const titleHTML = title ? `<h2 class="story-title">${escapeHtml(title)}</h2>` : '';
+  const titleHTML = title ? `<div class="story-title">${escapeHtml(title)}</div>` : '';
 
   return `
     <div class="story-page">
       <div class="story-header">
-        <h1 class="story-date">${formattedDate}</h1>
+        <div class="weekday">${weekday}</div>
+        <div class="date-line">${day} ${month} ${year}</div>
         ${titleHTML}
+        <div class="header-rule"></div>
       </div>
       <div class="story-content">
-        ${storyText ? `<p class="story-text">${escapeHtml(storyText)}</p>` : '<p class="no-story">No story available for this date.</p>'}
+        <p class="story-text">${escapeHtml(storyText)}</p>
       </div>
       ${imagesHTML}
     </div>
@@ -72,17 +74,16 @@ const generatePDFHTML = (stories, includeImages = true, options = {}) => {
     dateRange = null
   } = options;
 
-  // Generate header with date range if provided
-  let headerHTML = `<h1 class="document-title">${escapeHtml(documentTitle)}</h1>`;
-  if (dateRange) {
-    const { start, end } = dateRange;
-    headerHTML += `<p class="date-range">${start} - ${end}</p>`;
-  }
+  // Skip days with no story
+  const storiesWithContent = stories.filter(s => s.story && s.story.trim().length > 0);
 
-  // Generate story pages
-  const storiesHTML = stories
+  const storiesHTML = storiesWithContent
     .map(story => generateStoryPageHTML(story, includeImages))
     .join('<div class="page-break"></div>');
+
+  const dateRangeHTML = dateRange
+    ? `<div class="cover-range">${dateRange.start} &ndash; ${dateRange.end}</div>`
+    : '';
 
   return `
 <!DOCTYPE html>
@@ -100,61 +101,112 @@ const generatePDFHTML = (stories, includeImages = true, options = {}) => {
 
     @page {
       size: A5;
-      margin: 15mm;
+      margin: 0;
     }
 
     body {
-      font-family: 'Georgia', 'Times New Roman', serif;
-      font-size: 11pt;
-      line-height: 1.6;
-      color: #2c3e50;
+      font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
+      font-size: 10.5pt;
+      line-height: 1.75;
+      color: #1a1a2e;
       background: #ffffff;
     }
 
-    .document-title {
-      font-size: 24pt;
-      font-weight: bold;
+    /* ─── Cover Page ─────────────────────────── */
+    .cover-page {
+      width: 148mm;
+      height: 210mm;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a2e;
+      page-break-after: always;
       text-align: center;
-      margin-bottom: 10mm;
-      color: #1a1a1a;
-      border-bottom: 2px solid #3498db;
-      padding-bottom: 5mm;
+      padding: 20mm;
     }
 
-    .date-range {
-      text-align: center;
-      font-size: 11pt;
-      color: #7f8c8d;
-      margin-bottom: 15mm;
+    .cover-ornament {
+      font-size: 28pt;
+      color: #c9a84c;
+      margin-bottom: 8mm;
+      letter-spacing: 6pt;
+    }
+
+    .cover-title {
+      font-size: 22pt;
+      font-weight: normal;
+      color: #f5f0e8;
+      letter-spacing: 2pt;
+      line-height: 1.3;
+      margin-bottom: 5mm;
+    }
+
+    .cover-divider {
+      width: 25mm;
+      height: 0.5mm;
+      background: #c9a84c;
+      margin: 6mm auto;
+    }
+
+    .cover-range {
+      font-size: 10pt;
+      color: #a89f8c;
       font-style: italic;
+      letter-spacing: 1pt;
     }
 
+    .cover-footer-ornament {
+      font-size: 16pt;
+      color: #c9a84c;
+      margin-top: 12mm;
+      opacity: 0.6;
+    }
+
+    /* ─── Story Pages ────────────────────────── */
     .story-page {
-      margin-bottom: 10mm;
+      padding: 15mm;
+      min-height: 210mm;
     }
 
     .story-header {
-      margin-bottom: 6mm;
-      border-left: 4px solid #3498db;
-      padding-left: 4mm;
+      margin-bottom: 7mm;
     }
 
-    .story-date {
-      font-size: 14pt;
+    .weekday {
+      font-size: 20pt;
       font-weight: bold;
-      color: #2c3e50;
-      margin-bottom: 2mm;
+      color: #1a1a2e;
+      letter-spacing: 1pt;
+      line-height: 1.1;
+    }
+
+    .date-line {
+      font-size: 10pt;
+      color: #7a6e5f;
+      margin-top: 1mm;
+      letter-spacing: 0.5pt;
+      font-style: italic;
     }
 
     .story-title {
       font-size: 12pt;
-      font-weight: 600;
-      color: #34495e;
+      font-weight: bold;
+      color: #c9a84c;
+      margin-top: 3mm;
       font-style: italic;
     }
 
+    .header-rule {
+      margin-top: 4mm;
+      height: 2px;
+      background: linear-gradient(to right, #1a1a2e 60%, transparent);
+      border: none;
+    }
+
+    /* ─── Story Text ─────────────────────────── */
     .story-content {
-      margin-bottom: 6mm;
+      margin-bottom: 7mm;
     }
 
     .story-text {
@@ -162,51 +214,69 @@ const generatePDFHTML = (stories, includeImages = true, options = {}) => {
       hyphens: auto;
       white-space: pre-wrap;
       word-wrap: break-word;
+      color: #2c2c3e;
+      line-height: 1.8;
     }
 
-    .no-story {
-      font-style: italic;
-      color: #95a5a6;
-    }
-
+    /* ─── Images ─────────────────────────────── */
     .images {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(40mm, 1fr));
+      grid-template-columns: 1fr 1fr;
       gap: 3mm;
       margin-top: 5mm;
+    }
+
+    .images.images-single {
+      grid-template-columns: 1fr;
+    }
+
+    .image-wrapper {
+      background: #f5f0e8;
+      border-radius: 2mm;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 0.5mm solid #e0d8cc;
     }
 
     .story-image {
       width: 100%;
       height: auto;
-      border-radius: 2mm;
-      box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.1);
-      object-fit: cover;
-      max-height: 50mm;
+      max-height: 65mm;
+      object-fit: contain;
+      display: block;
     }
 
+    .images.images-single .story-image {
+      max-height: 85mm;
+    }
+
+    /* ─── Page breaks ────────────────────────── */
     .page-break {
       page-break-after: always;
       height: 0;
-      margin: 0;
-      padding: 0;
     }
 
-    /* Print-specific styles */
     @media print {
-      body {
-        background: white;
+      .cover-page {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
-
-      .story-page {
-        page-break-inside: avoid;
+      .header-rule {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
     }
   </style>
 </head>
 <body>
   <div class="cover-page">
-    ${headerHTML}
+    <div class="cover-ornament">✦ ✦ ✦</div>
+    <div class="cover-title">${escapeHtml(documentTitle)}</div>
+    <div class="cover-divider"></div>
+    ${dateRangeHTML}
+    <div class="cover-footer-ornament">✦</div>
   </div>
   ${storiesHTML}
 </body>
