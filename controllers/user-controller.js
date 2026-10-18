@@ -9,7 +9,7 @@ getUserById = async (req, res) => {
     return res.status(404).json({ message: "User not found" });
   }
 
-  res.status(200).json({ name: user.name, taskCompleted: user.taskCompleted });
+  res.status(200).json({ name: user.name, email: user.email, isVerified: user.isVerified, authProvider: user.authProvider, taskCompleted: user.taskCompleted });
 };
 
 updateUser = async (req, res) => {
@@ -155,6 +155,40 @@ togglePasscode = async (req, res) => {
   res.status(200).json({ message: "Passcode enabled", passcodeEnabled: true });
 };
 
+// Change password
+changePassword = async (req, res) => {
+  const userId = req.user.userId;
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: "Current and new password are required" });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: "New password must be at least 6 characters" });
+  }
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  if (user.authProvider !== 'email') {
+    return res.status(400).json({ message: "Password change is only available for email accounts" });
+  }
+
+  const isMatch = await user.comparePassword(currentPassword);
+  if (!isMatch) {
+    return res.status(401).json({ message: "Current password is incorrect" });
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  res.status(200).json({ message: "Password changed successfully" });
+};
+
 // Get passcode status
 getPasscodeStatus = async (req, res) => {
   const userId = req.user.userId;
@@ -181,4 +215,5 @@ module.exports = {
   verifyPasscode,
   togglePasscode,
   getPasscodeStatus,
+  changePassword,
 };

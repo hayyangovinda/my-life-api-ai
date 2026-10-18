@@ -12,6 +12,7 @@ const {
   verifyPasscode,
   togglePasscode,
   getPasscodeStatus,
+  changePassword,
 } = require("../controllers/user-controller");
 
 router.get("/active-user", getUserById);
@@ -29,5 +30,8 @@ router.get("/passcode/status", getPasscodeStatus);
 router.post("/passcode/set", setPasscode);
 router.post("/passcode/verify", verifyPasscode);
 router.post("/passcode/toggle", togglePasscode);
+
+// Route for changing password
+router.post("/change-password", changePassword);
 
 module.exports = router;
