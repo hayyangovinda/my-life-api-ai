@@ -62,6 +62,9 @@ const transcribeAudio = async (req, res) => {
     // Prepare form data
     const formData = new FormData();
     formData.append("model", model);
+    if (req.body.language) {
+      formData.append("language", req.body.language);
+    }
     formData.append("file", fs.createReadStream(mp3FilePath));
 
     // Send request to OpenAI API
