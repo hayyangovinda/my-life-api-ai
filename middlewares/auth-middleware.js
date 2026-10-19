@@ -4,7 +4,7 @@ const auth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    throw new Error("No token provided");
+    return res.status(401).json({ error: "No token provided" });
   }
 
   const token = authHeader.split(" ")[1];
@@ -14,7 +14,7 @@ const auth = async (req, res, next) => {
     req.user = { userId: payload.userId };
     next();
   } catch (error) {
-    throw new Error("Invalid token");
+    return res.status(401).json({ error: "Invalid token" });
   }
 };
 
